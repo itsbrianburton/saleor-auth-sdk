@@ -1,14 +1,13 @@
 import { SaleorRefreshTokenStorageHandler } from "./SaleorRefreshTokenStorageHandler";
 import { getRequestData, getTokenIss, isExpiredToken } from "./utils";
-import type {
-  FetchRequestInfo,
-  FetchWithAdditionalParams,
-  PasswordResetResponse,
-  PasswordResetVariables,
-  StorageRepository,
-  TokenCreateResponse,
-  TokenCreateVariables,
-  TokenRefreshResponse,
+import {
+  type FetchRequestInfo,
+  type FetchWithAdditionalParams, isTokenAuthVariables,
+  type PasswordResetResponse,
+  type PasswordResetVariables, type SignInVariables,
+  type StorageRepository, type TokenAuthVariables,
+  type TokenCreateResponse,
+  type TokenRefreshResponse,
 } from "./types";
 import { invariant } from "./utils";
 import { PASSWORD_RESET, TOKEN_CREATE, TOKEN_REFRESH } from "./mutations";
@@ -211,7 +210,30 @@ export class SaleorAuthClient {
     return readResponse;
   };
 
+  private handleSignInWithTokens = async (tokenData: TokenAuthVariables): Promise<TokenCreateResponse> => {
+    const mockResponse: TokenCreateResponse = {
+      data: {
+        tokenCreate: {
+          token: tokenData.token,
+          refreshToken: tokenData.refreshToken,
+          errors: [],
+        },
+      },
+    };
+
+    // Set tokens directly
+    this.accessTokenStorage.setAccessToken(tokenData.token);
+    if (tokenData.refreshToken) {
+      this.refreshTokenStorage?.setRefreshToken(tokenData.refreshToken);
+    }
+    this.refreshTokenStorage?.setAuthState("signedIn");
+
+    return mockResponse;
+  };
+
   /**
+   * @param input
+   * @param init
    * @param additionalParams
    * @param additionalParams.allowPassingTokenToThirdPartyDomains if set to true, the `Authorization` header will be added to the request even if the token's `iss` and request URL do not match
    */
@@ -252,7 +274,12 @@ export class SaleorAuthClient {
     return this.handleSignIn<PasswordResetResponse>(response);
   };
 
-  signIn = async (variables: TokenCreateVariables, requestInit?: RequestInit) => {
+  signIn = async (variables: SignInVariables, requestInit?: RequestInit) => {
+    // Check if variables contains direct token/refreshToken
+    if (isTokenAuthVariables(variables)) {
+      return this.handleSignInWithTokens(variables);
+    }
+
     const response = await fetch(
       this.saleorApiUrl,
       getRequestData(TOKEN_CREATE, variables, { ...this.defaultRequestInit, ...requestInit }),

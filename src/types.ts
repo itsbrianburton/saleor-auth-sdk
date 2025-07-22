@@ -14,6 +14,17 @@ export interface TokenCreateVariables {
   password: string;
 }
 
+export interface TokenAuthVariables {
+  token: string;
+  refreshToken: string;
+}
+
+export type SignInVariables = TokenCreateVariables | TokenAuthVariables;
+
+export function isTokenAuthVariables(variables: SignInVariables): variables is TokenAuthVariables {
+  return 'token' in variables && 'refreshToken' in variables;
+}
+
 interface GraphQLError {
   message: string;
 }

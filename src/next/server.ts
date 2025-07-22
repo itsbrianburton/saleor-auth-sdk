@@ -36,7 +36,8 @@ const nextStorageRepository = (options: { secure?: boolean } = {}, cookies: Cook
  */
 export const getNextServerCookiesStorage = (options: { secure?: boolean } = {}): StorageRepository => {
     const maybeCookiesPromise = cookies();
-  if (maybeCookiesPromise instanceof Promise) {
+  // Resolves ESLint warning. Type assertion to check if it's a Promise - this handles the type checking more explicitly
+  if ('then' in maybeCookiesPromise && typeof maybeCookiesPromise.then === 'function') {
     throw Error("This function should not be used with async cookies!");
   }
 
@@ -50,7 +51,8 @@ export const getNextServerCookiesStorage = (options: { secure?: boolean } = {}):
  */
 export const getNextServerCookiesStorageAsync = async (options: { secure?: boolean } = {}): Promise<StorageRepository> => {
     const maybeCookiesPromise = cookies();
-  if (!(maybeCookiesPromise instanceof Promise)) {
+  // Resolves ESLint warning. Check if it's NOT a Promise-like object
+  if (!('then' in maybeCookiesPromise && typeof maybeCookiesPromise.then === 'function')) {
     throw Error("This function should only be used with async cookies!");
   }
 
@@ -76,5 +78,9 @@ const tryGetExpFromJwt = (token: string) => {
   } catch {
     // silence is golden
   }
-  return undefined;
+
+  // Return a valid expiration date instead of undefined if not contained in JWT
+  const expiration = new Date();
+  expiration.setDate(expiration.getDate() + 30);
+  return expiration;
 };
